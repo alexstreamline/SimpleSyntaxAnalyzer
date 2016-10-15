@@ -31,6 +31,8 @@
             this.openFolderButton = new System.Windows.Forms.Button();
             this.startAnalysisButton = new System.Windows.Forms.Button();
             this.richTextBox1 = new System.Windows.Forms.RichTextBox();
+            this.openFileBitton = new System.Windows.Forms.Button();
+            this.button1 = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // openFolderButton
@@ -45,7 +47,7 @@
             // 
             // startAnalysisButton
             // 
-            this.startAnalysisButton.Location = new System.Drawing.Point(12, 134);
+            this.startAnalysisButton.Location = new System.Drawing.Point(12, 224);
             this.startAnalysisButton.Name = "startAnalysisButton";
             this.startAnalysisButton.Size = new System.Drawing.Size(128, 47);
             this.startAnalysisButton.TabIndex = 1;
@@ -61,11 +63,33 @@
             this.richTextBox1.TabIndex = 2;
             this.richTextBox1.Text = "";
             // 
+            // openFileBitton
+            // 
+            this.openFileBitton.Location = new System.Drawing.Point(12, 139);
+            this.openFileBitton.Name = "openFileBitton";
+            this.openFileBitton.Size = new System.Drawing.Size(128, 50);
+            this.openFileBitton.TabIndex = 3;
+            this.openFileBitton.Text = "Open Project File";
+            this.openFileBitton.UseVisualStyleBackColor = true;
+            this.openFileBitton.Click += new System.EventHandler(this.openFileBitton_Click);
+            // 
+            // button1
+            // 
+            this.button1.Location = new System.Drawing.Point(12, 298);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(128, 23);
+            this.button1.TabIndex = 4;
+            this.button1.Text = "DBTest";
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click);
+            // 
             // MainWindow
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1142, 414);
+            this.Controls.Add(this.button1);
+            this.Controls.Add(this.openFileBitton);
             this.Controls.Add(this.richTextBox1);
             this.Controls.Add(this.startAnalysisButton);
             this.Controls.Add(this.openFolderButton);
@@ -80,6 +104,8 @@
         private System.Windows.Forms.Button openFolderButton;
         private System.Windows.Forms.Button startAnalysisButton;
         private System.Windows.Forms.RichTextBox richTextBox1;
+        private System.Windows.Forms.Button openFileBitton;
+        private System.Windows.Forms.Button button1;
     }
 }
 

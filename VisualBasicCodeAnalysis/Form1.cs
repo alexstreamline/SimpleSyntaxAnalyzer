@@ -14,6 +14,7 @@ namespace VisualBasicCodeAnalysis
     public partial class MainWindow : Form
     {
         private string folderPath = null;
+        private string filePath = null;
         FolderBrowserDialog fld = new FolderBrowserDialog();
         public MainWindow()
         {
@@ -45,14 +46,17 @@ namespace VisualBasicCodeAnalysis
         {
 
             VisualBasicAnalysis vba = new VisualBasicAnalysis();
-           var labels = vba.GetProjectTest(folderPath);
-           // if (!string.IsNullOrEmpty(folderPath))  todo раскомментить после тестов
+           // folderPath = @"E:\abc.sln";
+           var funcList = vba.GetProjectTest(filePath);
+            if (!string.IsNullOrEmpty(filePath))  //todo раскомментить после тестов
            {
-               foreach (var label in labels)
-               {
-                   richTextBox1.Text += "Name - " + label.Name + "\n";
-                   richTextBox1.Text += "Text(Value) - " + label.Text + "\n";
-               }
+                DatabaseConnection dtb = new DatabaseConnection();
+                dtb.NonExecuteQueryForInsert(funcList);
+               //foreach (var label in labels)
+               //{
+               //    richTextBox1.Text += "Name - " + label.Name + "\n";
+               //    richTextBox1.Text += "Text(Value) - " + label.Text + "\n";
+               //}
               
                 //    var temp = vba.ChooseVBFile(folderPath);
                 //    richTextBox1.Text += "Начинаем анализ";
@@ -71,6 +75,23 @@ namespace VisualBasicCodeAnalysis
                 //    richTextBox1.Text += "\n" + "Всего найдено функций - " + count + "\n";
                 // AddText(vba.ChooseVBFile(folderPath));
             }
+        }
+
+        private void openFileBitton_Click(object sender, EventArgs e)
+        {
+            FileDialog fld = new OpenFileDialog();
+            fld.FileName = filePath;
+            fld.Filter = "Solution File .sln |*.sln";
+            if (fld.ShowDialog() == DialogResult.OK)
+            {
+                filePath = fld.FileName;
+            }
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+           DatabaseConnection dtb = new DatabaseConnection();
+            dtb.CreateOrUpdateDatabase();
         }
     }
 }
