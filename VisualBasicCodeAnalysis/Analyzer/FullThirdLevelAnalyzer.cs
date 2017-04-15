@@ -14,7 +14,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
     /// <summary>
     /// класс, в котором находится полная логика анализа по третьему уровню НДВ
     /// </summary>
-    public static class FullThirdLevelAnalyzer
+    public static class FullThirdLevelAnalyzer 
     {
 
        // List<FuncStruct> funcStructList = new List<FuncStruct>();
@@ -248,9 +248,10 @@ namespace VisualBasicCodeAnalysis.Analyzer
             }
         }
 
-        public static void IfElseStatement(SyntaxNode syntaxNode)
+        public static void MultiLineIfBlockStatement(SyntaxNode syntaxNode)
         {
-            var nodeList = syntaxNode.ChildNodes().ToList(); //первая и последняя - опять описательные
+            //логика работы с блоком MultiLineIfBlock
+            var nodeList = syntaxNode.ChildNodes().ToList(); //первая и последняя - IfStatement и EndIfStatement
             for (int i = 1; i < nodeList.Count - 1; i++) //пройдем по всем нодам кроме стартовой и последней
               {
                 FindSplitStatement(nodeList[i]);
@@ -276,6 +277,10 @@ namespace VisualBasicCodeAnalysis.Analyzer
                     break;
                 case SyntaxKind.DoUntilLoopBlock:
                     //todo 
+                    break;
+                default:
+                    //сюда мы должны попасть, если не встретили циклов или ветвлений
+                    //то есть перед нами нода ЛУ (линейного участка)
                     break;
             }
             
