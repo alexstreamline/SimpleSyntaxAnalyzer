@@ -13,17 +13,17 @@ namespace VisualBasicCodeAnalysis
 {
     public partial class MainWindow : Form
     {
-        private string folderPath = null;
-        private string filePath = null;
+        private string folderPath;
+        private string filePath;
         FolderBrowserDialog fld = new FolderBrowserDialog();
         public MainWindow()
         {
             InitializeComponent();
+            
         }
 
         private void openFolderButton_Click(object sender, EventArgs e)
-        {
-            
+        {  
             fld.SelectedPath = folderPath;
             if (fld.ShowDialog() == DialogResult.OK)
             {
@@ -34,47 +34,23 @@ namespace VisualBasicCodeAnalysis
             }    
         }
 
-        public void AddText(string[] texts)
-        {
-            foreach (var text in texts)
-            {
-                richTextBox1.Text += text + "\n";
-            }            
-        }
+       
 
         private void startAnalysisButton_Click(object sender, EventArgs e)
         {
-
-            VisualBasicAnalysis vba = new VisualBasicAnalysis();
-           // folderPath = @"E:\abc.sln";
-           var funcList = vba.GetProjectTest(filePath);
-            if (!string.IsNullOrEmpty(filePath))  //todo раскомментить после тестов
-           {
-                DatabaseConnection dtb = new DatabaseConnection();
-                dtb.NonExecuteQueryForInsert(funcList);
-               //foreach (var label in labels)
-               //{
-               //    richTextBox1.Text += "Name - " + label.Name + "\n";
-               //    richTextBox1.Text += "Text(Value) - " + label.Text + "\n";
-               //}
-              
-                //    var temp = vba.ChooseVBFile(folderPath);
-                //    richTextBox1.Text += "Начинаем анализ";
-                //    int count = 0;
-                //    foreach (var filePath in temp)
-                //    {
-                //        var vbfiles = vba.ParseText(filePath);
-                //        if ((vbfiles != null) && (vbfiles.Length > 0))
-                //        {
-                //            richTextBox1.Text += "Файл " + filePath + "\n";
-                //            count += vbfiles.Length;
-                //            AddText(vbfiles);
-                //        }
-                //    }
-                //    richTextBox1.Text += "\n" + "Всего найдено файлов .vb - " + temp.Length + "\n";
-                //    richTextBox1.Text += "\n" + "Всего найдено функций - " + count + "\n";
-                // AddText(vba.ChooseVBFile(folderPath));
-            }
+            
+            FullThirdLevelAnalyzer.StartSearching(filePath);
+           // VisualBasicAnalysis vba = new VisualBasicAnalysis();
+           //// folderPath = @"E:\abc.sln";
+           ////var analisysResult = vba.GetProjectTest(filePath);
+           //  //vba.TestWorkspaceChange(filePath);
+           //  vba.GetFunctionList(filePath);
+           // if (!string.IsNullOrEmpty(filePath))  //todo раскомментить после тестов
+           //{
+           //     DatabaseConnection dtb = new DatabaseConnection();
+           //     dtb.NonExecuteQueryForInsertFuncToFunc(VisualBasicAnalysis.FuncToFuncLinkStructsList);
+               
+           // }
         }
 
         private void openFileBitton_Click(object sender, EventArgs e)
@@ -92,6 +68,21 @@ namespace VisualBasicCodeAnalysis
         {
            DatabaseConnection dtb = new DatabaseConnection();
             dtb.CreateOrUpdateDatabase();
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            FuncUsingLogParser.ReadLogFile(@"D:\Atlaslog-20170406.txt");
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            DynamicTest.UnPasteMarker(filePath);
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+           FullThirdLevelAnalyzer.PasteMarkersToProject();
         }
     }
 }

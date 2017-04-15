@@ -53,6 +53,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
                         "CREATE TABLE Function (id INTEGER PRIMARY KEY, name TEXT, ret_type TEXT, type_param TEXT, count_line INTEGER," + 
                         "def_file TEXT, def_offset INTEGER, dec_file TEXT, is_useful INTEGER, udb_id INTEGER);");
                     NonExecuteQuery("CREATE TABLE gVar (id INTEGER PRIMARY KEY, name TEXT, type TEXT, def_file TEXT, def_offset INTEGER);");
+                    NonExecuteQuery("CREATE TABLE Func_Func_Link (id_parent INGETER, id_child INTEGER);");
                     connection.Close();
                 }
             }
@@ -74,7 +75,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
             }
         }
 
-        public void NonExecuteQueryForInsert(List<VisualBasicAnalysis.FuncStruct> functionStruct)
+        public void NonExecuteQueryForInsertFunc(List<VisualBasicAnalysis.FuncStruct> functionStruct)
         {
             try
             {
@@ -119,6 +120,105 @@ namespace VisualBasicCodeAnalysis.Analyzer
             {
 
                 
+            }
+        }
+
+        public void NonExecuteQueryForInsertFuncToFunc(List<VisualBasicAnalysis.FuncToFuncLinkStruct> funcToFunc)
+        {
+            try
+            {
+                dbFileName = @"E:\testdb.db";
+                SQLiteConnection con = new SQLiteConnection();
+                if (!File.Exists(dbFileName))
+                {
+                    // SQLiteConnection.CreateFile(dbFileName);
+                }
+                sqlFactory = (SQLiteFactory)DbProviderFactories.GetFactory("System.Data.SQLite");
+                using (connection = (SQLiteConnection)sqlFactory.CreateConnection())
+                {
+                    connection.ConnectionString = "Data Source = " + dbFileName;
+                    connection.Open();
+
+
+                    
+                    foreach (var func in funcToFunc)
+                    {
+                        SQLiteCommand command = new SQLiteCommand(connection)
+                        {
+                            CommandText = "INSERT INTO Func_Func_Link (id_parent, id_child ) VALUES (@id_parent,@id_child)"
+                        };
+                        command.Parameters.Add(new SQLiteParameter("@id_parent", func.ParentFuncId ));
+                        command.Parameters.Add(new SQLiteParameter("@id_child", func.ChildFuncId));
+                        command.CommandType = CommandType.Text;
+                        command.ExecuteNonQuery();
+                       
+                    }
+
+                    foreach (var function in VisualBasicAnalysis.FunctionList)
+                    {
+                        SQLiteCommand command = new SQLiteCommand(connection)
+                        {
+                            CommandText = "INSERT INTO Function (id, name) VALUES (@id,@name)"
+                        };
+                        command.Parameters.Add(new SQLiteParameter("@id", function.Key));
+                        command.Parameters.Add(new SQLiteParameter("@name", function.Value.Name));
+                        command.CommandType = CommandType.Text;
+                        command.ExecuteNonQuery();
+                    }
+                    
+                    connection.Close();
+                }
+
+            }
+            catch (Exception e)
+            {
+
+
+            }
+        }
+
+        public void NonExecuteQueryForInsertVar(List<VisualBasicAnalysis.VarStruct> varStruct)
+        {
+            try
+            {
+                dbFileName = @"E:\testdb.db";
+                SQLiteConnection con = new SQLiteConnection();
+                if (!File.Exists(dbFileName))
+                {
+                    // SQLiteConnection.CreateFile(dbFileName);
+                }
+                sqlFactory = (SQLiteFactory)DbProviderFactories.GetFactory("System.Data.SQLite");
+                using (connection = (SQLiteConnection)sqlFactory.CreateConnection())
+                {
+                    connection.ConnectionString = "Data Source = " + dbFileName;
+                    connection.Open();
+
+
+                    int i = 1;
+                    foreach (var varS in varStruct)
+                    {
+                        SQLiteCommand command = new SQLiteCommand(connection)
+                        {
+                            CommandText = "INSERT INTO gVar (id, name, type, def_file," +
+                                          " def_offset) VALUES (@id,@name,@type,@def_file,@def_offset)"
+                        };
+                        command.Parameters.Add(new SQLiteParameter("@id", varS.Id));
+                        command.Parameters.Add(new SQLiteParameter("@name", varS.Name));
+                        command.Parameters.Add(new SQLiteParameter("@type", varS.Type));
+                        command.Parameters.Add(new SQLiteParameter("@def_file", varS.DefFile));
+                        command.Parameters.Add(new SQLiteParameter("@def_offset", varS.DefOffset));
+                        command.CommandType = CommandType.Text;
+                        command.ExecuteNonQuery();
+                        i++;
+                    }
+                    connection.Close();
+                }
+
+            }
+            catch (Exception e)
+            {
+
+
             }
         }
 
