@@ -67,7 +67,8 @@ namespace VisualBasicCodeAnalysis
         private void button1_Click(object sender, EventArgs e)
         {
            DatabaseConnection dtb = new DatabaseConnection();
-            dtb.CreateOrUpdateDatabase();
+           // dtb.CreateOrUpdateDatabase();
+           dtb.CreateNewDatabase();
         }
 
         private void button2_Click(object sender, EventArgs e)

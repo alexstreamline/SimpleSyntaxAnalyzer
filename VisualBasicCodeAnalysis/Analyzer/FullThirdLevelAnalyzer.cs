@@ -65,6 +65,8 @@ namespace VisualBasicCodeAnalysis.Analyzer
                     //GetConstructorsList(syntaxTree, document, compilation, project);
                 }
             }
+            DatabaseConnection dtb = new DatabaseConnection();
+            dtb.NonExecuteQueryFromLinSection();
            
         }
 
@@ -92,7 +94,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
                 foreach (var function in functionsList)
                     //todo переисеновать function в functionNode, а его в свою очередь в functionStatementNode
                   {
-                    FindLinearSection(function, GlobalFuncId); //todo тест, не забыть убрать
+                    //FindLinearSection(function, GlobalFuncId, functionNode.Identifier.Text, document.FilePath); //todo тест, не забыть убрать
                     SemanticModel semanticModel = compilation.GetSemanticModel(syntaxTree);
                     var lineSpan = syntaxTree.GetLineSpan(function.Span); //отступ в строках
                     int count = lineSpan.Span.End.Line - lineSpan.Span.Start.Line + 1; //размер функции в строках
@@ -133,8 +135,8 @@ namespace VisualBasicCodeAnalysis.Analyzer
                         FunctionStructList.Add(GlobalFuncId, new FunctionStruct(GlobalFuncId,functionNode.Identifier.Text, ReturnTypeToString(functionNode),
                             ParamListToString(functionNode.ParameterList), count, defPath ,defOffset, isUseful, document.Name,
                                 function.Span.Start, function.Span.End, markerPosition, usingStructList));  //заполнение структур функций
-                        
-                        
+                        FindLinearSection(function, GlobalFuncId, functionNode.Identifier.Text, document.Name);
+
                         GlobalFuncId++;
                     }
                     
@@ -209,7 +211,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
         /// поиск линейных участков внутри функции
         /// </summary>
         /// <param name="functionNode"></param>
-        public static void FindLinearSection(SyntaxNode functionNode, int funcID)
+        public static void FindLinearSection(SyntaxNode functionNode, int funcID, string fileName, string funcName)
         {
             LocalLinSectionId = 1;
             List<SyntaxNode> linNodes = new List<SyntaxNode>();
@@ -219,15 +221,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
             //если находим - создаем 2 новых линейных участка (по if и else ветке)
             //при этом рассматриваем каждую ветку на наличие внутри еще конструкций
             //
-            var ifConstructionNodes =
-                functionNode.ChildNodes()
-                    .Where(
-                        node =>
-                            node.Kind() == SyntaxKind.MultiLineIfBlock ||
-                            node.Kind() == SyntaxKind.SingleLineIfStatement)
-                    .ToList();
-
-
+            
             //получить список всех первичных чайлд нод
             var nodeList = functionNode.ChildNodes().ToList();
             //начинается с описания - значит все правильно
@@ -241,7 +235,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
                     //теперь свобода действий - ищем конструкции, которые будут разделять код на линейные участки
                     for (int i = 1; i < nodeList.Count - 1; i++) //пройдем по всем нодам кроме стартовой и последней
                     {
-                        if (FindSplitStatement(nodeList[i], funcID))
+                        if (FindSplitStatement(nodeList[i], funcID, fileName, funcName))
                             //если очередная нода - не ветвление, то добавить ее на стек
                         {
                             linNodes.Add(nodeList[i]);
@@ -249,73 +243,43 @@ namespace VisualBasicCodeAnalysis.Analyzer
                         else //если это ветвление - значит внутри него уже идет поиск своих ЛУ
                             //но кроме этого все содержимое стека - еще один ЛУ
                         {
-                            CreateSectionFromStack(nodeList[i],funcID,ref linNodes);
-                            //SyntaxTree sTree = functionNode.SyntaxTree;
-                            //if (linNodes.Any())
-                            //{
-                            //    int startLineOfLinSection = sTree.GetLineSpan(linNodes[0].Span).Span.Start.Line + 1;
-                            //    int endLineOfLinSection =
-                            //        sTree.GetLineSpan(linNodes[linNodes.Count - 1].Span).Span.End.Line + 1;
-                            //    int size = endLineOfLinSection - startLineOfLinSection + 1;
-                            //    LinearSection linearSection = new LinearSection(funcID, LocalLinSectionId,
-                            //        GlobalLinSectionId, size
-                            //        , 0, startLineOfLinSection, endLineOfLinSection); //создали экземпляр нового ЛУ
-                            //    LinearSectionsList.Add(GlobalLinSectionId, linearSection); //добавили в список
-                            //    LocalLinSectionId++;
-                            //    GlobalLinSectionId++;
-                            //    linNodes.Clear();
-                            //}
+                            CreateSectionFromStack(nodeList[i],funcID,ref linNodes, fileName, funcName);                            
                         }
                     }
-                    CreateSectionFromStack(functionNode, funcID,ref linNodes);
+                    CreateSectionFromStack(functionNode, funcID,ref linNodes, fileName, funcName);
                 }
-                //если нашли внутри функции if - else условия 
-                //if (ifConstructionNodes.Any()) //todo test
-                //{
-                //    foreach (var ifNode in ifConstructionNodes)
-                //    {
-                //        if (ifNode.ChildNodes().ToList()[0].IsKind(SyntaxKind.IfStatement))
-                //        {
-
-                //        }
-                //        else
-                //        {
-                //            int a = 0;
-                //        }
-                //    }
-
-                //}
+                
             }
         }
 
-        public static void MultiLineIfBlockStatement(SyntaxNode syntaxNode, int funcID)
+        public static void MultiLineIfBlockStatement(SyntaxNode syntaxNode, int funcID, string fileName, string funcName)
         {
             List<SyntaxNode> linNodes = new List<SyntaxNode>();
             //логика работы с блоком MultiLineIfBlock
             var nodeList = syntaxNode.ChildNodes().ToList(); //первая и последняя - IfStatement и EndIfStatement
             for (int i = 1; i < nodeList.Count - 1; i++) //пройдем по всем нодам кроме стартовой и последней
               {
-                  if (FindSplitStatement(nodeList[i],funcID)) //если очередная нода - не ветвление, то добавить ее на стек
+                  if (FindSplitStatement(nodeList[i],funcID, fileName, funcName)) //если очередная нода - не ветвление, то добавить ее на стек
                   {
                      linNodes.Add(nodeList[i]);  
                   }
                   else //если это ветвление - значит внутри него уже идет поиск своих ЛУ
                   //но кроме этого все содержимое стека - еще один ЛУ
                   {
-                    CreateSectionFromStack(syntaxNode, funcID, ref linNodes);
+                    CreateSectionFromStack(syntaxNode, funcID, ref linNodes, fileName, funcName);
                   }
               }
-            CreateSectionFromStack(syntaxNode, funcID, ref linNodes);
+            CreateSectionFromStack(syntaxNode, funcID, ref linNodes, fileName, funcName);
         }
 
-        public static void ElseBlockStatement(SyntaxNode syntaxNode, int funcID)
+        public static void ElseBlockStatement(SyntaxNode syntaxNode, int funcID, string fileName, string funcName)
         {
             List<SyntaxNode> linNodes = new List<SyntaxNode>();
             //логика работы с блоком ElseBlock
             var nodeList = syntaxNode.ChildNodes().ToList();
             for (int i = 1; i < nodeList.Count; i++) // первая нода - ElseStatement, остальные смотрим
             {
-                if (FindSplitStatement(nodeList[i], funcID))
+                if (FindSplitStatement(nodeList[i], funcID, fileName, funcName))
                     //если очередная нода - не ветвление, то добавить ее на стек
                 {
                     linNodes.Add(nodeList[i]);
@@ -323,29 +287,37 @@ namespace VisualBasicCodeAnalysis.Analyzer
                 else //если это ветвление - значит внутри него уже идет поиск своих ЛУ
                     //но кроме этого все содержимое стека - еще один ЛУ
                 {
-                    CreateSectionFromStack(syntaxNode,funcID,ref linNodes);
+                    CreateSectionFromStack(syntaxNode,funcID,ref linNodes, fileName, funcName);
                 }
             }
-            CreateSectionFromStack(syntaxNode, funcID, ref linNodes);
+            CreateSectionFromStack(syntaxNode, funcID, ref linNodes, fileName, funcName);
 
         }
 
-        
 
         /// <summary>
         /// Логика взаимодействия с неким разделителем (if/else/sitch/case, циклы)
         /// </summary>
         /// <param name="syntaxNode"></param>
-        public static bool FindSplitStatement(SyntaxNode syntaxNode, int funcID)
+        /// <param name="funcID"></param>
+        public static bool FindSplitStatement(SyntaxNode syntaxNode, int funcID, string fileName, string funcName)
         {
             switch (syntaxNode.Kind())
             {
+                case SyntaxKind.TryBlock:
+                case SyntaxKind.ForBlock:
+                case SyntaxKind.ForEachBlock:
+                case SyntaxKind.SelectBlock:
+                case SyntaxKind.UsingBlock:
+                case SyntaxKind.DoLoopWhileBlock:
+                case SyntaxKind.WithBlock:
                 case SyntaxKind.MultiLineIfBlock:
-                    MultiLineIfBlockStatement(syntaxNode, funcID);
+                    MultiLineIfBlockStatement(syntaxNode, funcID, fileName, funcName);
                     //todo 
                     break;
                 case SyntaxKind.SingleLineIfStatement:
-                    //todo 
+                    var syntaxNodes = new List<SyntaxNode>{syntaxNode};
+                    CreateSectionFromStack(syntaxNode,funcID,ref syntaxNodes, fileName,funcName); 
                     break;
                 case SyntaxKind.DoWhileLoopBlock:
                     //todo 
@@ -354,9 +326,11 @@ namespace VisualBasicCodeAnalysis.Analyzer
                     //todo 
                     break;
                 case SyntaxKind.ElseIfBlock:
-                    
+                case SyntaxKind.CaseBlock:
+                case SyntaxKind.CatchBlock:
+                case SyntaxKind.FinallyBlock:
                 case SyntaxKind.ElseBlock:
-                    ElseBlockStatement(syntaxNode,funcID);
+                    ElseBlockStatement(syntaxNode,funcID, fileName, funcName);
                     break;
                 default:
                     //сюда мы должны попасть, если не встретили циклов или ветвлений
@@ -367,7 +341,37 @@ namespace VisualBasicCodeAnalysis.Analyzer
 
         }
 
-        public static void CreateSectionFromStack(SyntaxNode syntaxNode, int funcID, ref List<SyntaxNode> linNodes)
+        public static bool FindSplitStatementWithoutAction(SyntaxNode syntaxNode)
+        {
+            switch (syntaxNode.Kind())
+            {
+                case SyntaxKind.TryBlock:
+                case SyntaxKind.ForBlock:
+                case SyntaxKind.ForEachBlock:
+                case SyntaxKind.SelectBlock:
+                case SyntaxKind.UsingBlock:
+                case SyntaxKind.DoLoopWhileBlock:
+                case SyntaxKind.WithBlock:
+                case SyntaxKind.MultiLineIfBlock:
+                case SyntaxKind.SingleLineIfStatement:
+                case SyntaxKind.DoWhileLoopBlock:
+                case SyntaxKind.DoUntilLoopBlock:
+                case SyntaxKind.ElseIfBlock:
+                case SyntaxKind.CaseBlock:
+                case SyntaxKind.CatchBlock:
+                case SyntaxKind.FinallyBlock:
+                case SyntaxKind.ElseBlock:
+                break;
+                default:
+                    //сюда мы должны попасть, если не встретили циклов или ветвлений
+                    //то есть перед нами нода ЛУ (линейного участка)
+                    return true; //если нашли не ветвление - вернули true, иначе false
+            }
+            return false;
+
+        }
+
+        public static void CreateSectionFromStack(SyntaxNode syntaxNode, int funcID, ref List<SyntaxNode> linNodes, string fileName, string funcName)
         {
             SyntaxTree sTree = syntaxNode.SyntaxTree;
             if (linNodes.Any())
@@ -377,7 +381,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
                 int size = endLineOfLinSection - startLineOfLinSection + 1;
                 LinearSection linearSection = new LinearSection(funcID, LocalLinSectionId, GlobalLinSectionId,
                     size
-                    , 0, startLineOfLinSection, endLineOfLinSection); //создали экземпляр нового ЛУ
+                    , 0, fileName,funcName, startLineOfLinSection, endLineOfLinSection); //создали экземпляр нового ЛУ
                 LinearSectionsList.Add(GlobalLinSectionId, linearSection); //добавили в список
                 LocalLinSectionId++;
                 GlobalLinSectionId++;
@@ -626,16 +630,16 @@ namespace VisualBasicCodeAnalysis.Analyzer
             /// </summary>
             public int IsUsing;
             //public string ProjectName;
-            //public string FileName;
+            public string FileName;
             /// <summary>
             /// имя функции(метода, процедуры), внутри которой находится ЛУ
             /// </summary>
-            //public string FuncName;
+            public string FuncName;
             public int StartLine;
             public int EndLine;
 
-            public LinearSection(int functionID, int localID, int globalID, int size, int isUsing, /*string projectName,
-                string fileName,*/ int startLine, int endLine)
+            public LinearSection(int functionID, int localID, int globalID, int size, int isUsing, /*string projectName,*/
+                string fileName, string funcName, int startLine, int endLine)
             {
                 FunctionID = functionID;
                 LocalID = localID;
@@ -643,7 +647,8 @@ namespace VisualBasicCodeAnalysis.Analyzer
                 Size = size;
                 IsUsing = isUsing;
                 //ProjectName = projectName;
-               // FileName = fileName;
+                FileName = fileName;
+                FuncName = funcName;
                 StartLine = startLine;
                 EndLine = endLine;
             }
