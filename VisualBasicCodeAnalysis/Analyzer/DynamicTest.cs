@@ -26,17 +26,37 @@ namespace VisualBasicCodeAnalysis.Analyzer
             {
                 if (filesDictionary.ContainsKey(functionStruct.Value.DefFile))
                 {
-                   ReWriteFile(functionStruct.Value.DefFile,functionStruct.Value.MarkerPosition + filesDictionary[functionStruct.Value.DefFile],functionStruct.Value.Id);
+                   ReWriteFile(functionStruct.Value.DefFile,functionStruct.Value.MarkerPosition + filesDictionary[functionStruct.Value.DefFile],functionStruct.Value.Id, 3);
                    filesDictionary[functionStruct.Value.DefFile]++;
                 }
                 else
                 {
                     filesDictionary.Add(functionStruct.Value.DefFile,0);
-                    ReWriteFile(functionStruct.Value.DefFile,functionStruct.Value.DefOffset,functionStruct.Value.Id);
+                    ReWriteFile(functionStruct.Value.DefFile,functionStruct.Value.DefOffset,functionStruct.Value.Id, 3);
                 }
                
             }
             
+        }
+
+        public static void PasteMarkerLinSection(Dictionary<int, FullThirdLevelAnalyzer.LinearSection> inputLinSectionList)
+        {
+            Dictionary<string, int> filesDictionary = new Dictionary<string, int>();
+            foreach (var linSectionStruct in inputLinSectionList)
+            {
+                if (filesDictionary.ContainsKey(linSectionStruct.Value.FileName))//todo здесь не fileName, а нужен полный путь 
+                {
+                    ReWriteFile(functionStruct.Value.DefFile, functionStruct.Value.MarkerPosition + filesDictionary[functionStruct.Value.DefFile], functionStruct.Value.Id, 3);
+                    filesDictionary[functionStruct.Value.DefFile]++;
+                }
+                else
+                {
+                    filesDictionary.Add(functionStruct.Value.DefFile, 0);
+                    ReWriteFile(functionStruct.Value.DefFile, functionStruct.Value.DefOffset, functionStruct.Value.Id, 3);
+                }
+
+            }
+
         }
         /// <summary>
         /// удаление всех маркеров в проекте
@@ -84,13 +104,23 @@ namespace VisualBasicCodeAnalysis.Analyzer
         /// </summary>
         /// <param name="filePath"> путь к файлу </param>
         /// <param name="line"> номер строки, куда будет вставлена необходимая строка</param>
-        /// <param name="idFunction"> ID функции, который запишется в логгер </param>
-        public static void ReWriteFile(string filePath, int line, int idFunction)
+        /// <param name="idFunction"> ID функции (или линейного участка), который запишется в логгер </param>
+        public static void ReWriteFile(string filePath, int line, int idFunction, int analyzeLevel)
         {
             string[] allLines = File.ReadAllLines(filePath);
             List<string> allLinesToList = allLines.ToList();
-            string messageLine = @"Logger.Log(""" + idFunction +
+            string messageLine = String.Empty;
+            if (analyzeLevel == 3)
+            {
+                 messageLine = @"Logger.Log(""" + idFunction +
             @""")";
+            }
+            if (analyzeLevel == 2)
+            {
+                 messageLine = @"Logger.LogLin(""" + idFunction +
+            @""")";
+            }
+            
             allLinesToList.Insert(line,messageLine);
             File.WriteAllLines(filePath, allLinesToList.ToArray());
         }

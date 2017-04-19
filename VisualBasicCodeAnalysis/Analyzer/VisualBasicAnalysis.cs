@@ -457,30 +457,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
                     }
                 }
 
-            }
-
-            //foreach (var funcStruct in functionStructList)  //для каждой найденной функции проверить, на какие функции приходятся ее вызовы
-            //{
-            //    foreach (var usingFunc in funcStruct.UsingList)
-            //    {
-            //        var funcCompareList = functionStructList.Where(x => x.DocumentName == usingFunc.DocumentName);
-            //       // funcCompareList.Where(x => (usingFunc.StartLine > x.StartLine) && (usingFunc.FinishLine < x.FinishLine)).Select(x => )
-            //        foreach (var f in funcCompareList)
-            //        {
-            //            if ((usingFunc.StartLine > f.StartLine) && (usingFunc.FinishLine < f.FinishLine))
-            //            {
-            //                if (!_funcToFuncUsing.ContainsKey(f.Name))
-            //                {
-            //                    _funcToFuncUsing.Add(f.Name, funcStruct.Name);
-            //                }
-            //                //usingFunc.FuncUsingName = f.Name;
-            //                //данный вызов функции происходит в функции f.Name
-
-            //            }
-            //        }
-            //    }
-                
-            //}
+            }           
             FuncToFuncLinkStructsList = FuncToFuncLinkStructsList.OrderBy(x => x.ParentFuncId).ToList();
         }
 

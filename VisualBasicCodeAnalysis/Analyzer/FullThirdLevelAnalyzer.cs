@@ -19,10 +19,13 @@ namespace VisualBasicCodeAnalysis.Analyzer
     {
 
        // List<FuncStruct> funcStructList = new List<FuncStruct>();
-        static List<VarStruct> varStructList = new List<VarStruct>();
+       public static List<VarStruct> VarStructList = new List<VarStruct>();
         public static Dictionary<int,FunctionStruct> FunctionStructList = new Dictionary<int, FunctionStruct>();
 
         public static Dictionary<int, LinearSection> LinearSectionsList = new Dictionary<int, LinearSection>();
+
+        public static List<FuncToFuncLinkStruct> FuncToFuncLinkStructsList = new List<FuncToFuncLinkStruct>();
+
         private static readonly Dictionary<string, string> CharBasicDictionary = new Dictionary<string, string>
         {
             ["&"] = "Long",
@@ -42,6 +45,8 @@ namespace VisualBasicCodeAnalysis.Analyzer
 
         public static int LocalLinSectionId;
 
+        public static int GlobalVarId = 1;
+
 
         /// <summary>
         /// Запуск анализа проекта по 3 уровню НДВ
@@ -60,13 +65,19 @@ namespace VisualBasicCodeAnalysis.Analyzer
                 var documentList = project.Documents.ToList();
                 foreach (var document in documentList)
                 {
-                    SyntaxTree syntaxTree = document.GetSyntaxTreeAsync().Result;
-                    GetFunctionsList(syntaxTree,document,compilation, project); //заполнить список структур с описанием функциональных объектов
-                    //GetConstructorsList(syntaxTree, document, compilation, project);
+                    if (document.Name != "Logger.vb") //не учитываем логгер, который добавили сами для дин анализа
+                    {
+                        SyntaxTree syntaxTree = document.GetSyntaxTreeAsync().Result;
+                        GetFunctionsList(syntaxTree, document, compilation, project); //todo решение с поиском сначала функций а потом конструкторов не очень рационально
+                            //заполнить список структур с описанием функциональных объектов
+                        GetConstructorsList(syntaxTree, document, compilation, project);  //todo подумать потом что можно сделать
+                        VarSearcher(syntaxTree);
+                    }
                 }
             }
             DatabaseConnection dtb = new DatabaseConnection();
-            dtb.NonExecuteQueryFromLinSection();
+           // dtb.NonExecuteQueryForInsertFunc();
+           // dtb.NonExecuteQueryForLinSection();
            
         }
 
@@ -75,7 +86,11 @@ namespace VisualBasicCodeAnalysis.Analyzer
             DynamicTest.PasteMarker(FunctionStructList);
         }
 
+        #region Поиск функциональных объектов
 
+        
+
+        
         /// <summary>
         /// Получить список функциональных объектов в этом файле
         /// </summary>
@@ -135,7 +150,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
                         FunctionStructList.Add(GlobalFuncId, new FunctionStruct(GlobalFuncId,functionNode.Identifier.Text, ReturnTypeToString(functionNode),
                             ParamListToString(functionNode.ParameterList), count, defPath ,defOffset, isUseful, document.Name,
                                 function.Span.Start, function.Span.End, markerPosition, usingStructList));  //заполнение структур функций
-                        FindLinearSection(function, GlobalFuncId, functionNode.Identifier.Text, document.Name);
+                        FindLinearSection(function, GlobalFuncId, document.Name, functionNode.Identifier.Text);
 
                         GlobalFuncId++;
                     }
@@ -172,11 +187,12 @@ namespace VisualBasicCodeAnalysis.Analyzer
                     List<UsingStruct> usingStructList = new List<UsingStruct>();
                     var functionNode =
                         
-                        function.ChildNodes()
+                        (SubNewStatementSyntax)function.ChildNodes()
                             .First(
                                 m => m.Kind() == SyntaxKind.SubNewStatement);
                     if (functionNode != null)
                     {
+                        
                         var findReference =
                             SymbolFinder.FindReferencesAsync(semanticModel.GetDeclaredSymbol(functionNode),
                                 project.Solution).Result.FirstOrDefault();
@@ -194,12 +210,20 @@ namespace VisualBasicCodeAnalysis.Analyzer
                                 usingStructList.Add(usingStruct);
                             }
                         }
+                        //имя конструктора берем как название его класса
+                       // if (function.Parent.IsKind(SyntaxKind.ClassBlock))
+                       
+                           var classNode =  (ClassStatementSyntax)function.Parent.ChildNodes().First(x => x.Kind() == SyntaxKind.ClassStatement);
+                            var constructorName = classNode.Identifier.ValueText;
+                        
+                        int isUseful = 0; //при создании равно нулю, меняется в дальнейшем
                         var funcNodeForMarker = (SyntaxNode)functionNode;
                         int markerPosition = syntaxTree.GetLineSpan(funcNodeForMarker.Span).Span.End.Line + 2; /*2 - дофига магическое число,
                         позволяет получить нужную позицию (сразу сигнатуры функции)*/
-                        //functionStructList.Add(new FunctionStruct(GlobalId, string.Empty, string.Empty,
-                        //    ParamListToString(functionNode.SubNewStatement.ParameterList), count, defPath, defOffset, document.Name,
-                        //        function.Span.Start, function.Span.End, markerPosition, usingStructList));  //заполнение структур функций
+                        FunctionStructList.Add(GlobalFuncId, new FunctionStruct(GlobalFuncId, constructorName, string.Empty,
+                            ParamListToString(functionNode.ParameterList), count, defPath, defOffset, isUseful, document.Name,
+                                function.Span.Start, function.Span.End, markerPosition, usingStructList));  //заполнение структур функций
+                        FindLinearSection(function, GlobalFuncId, String.Empty, document.Name);
                         GlobalFuncId++;
                     }
 
@@ -207,6 +231,28 @@ namespace VisualBasicCodeAnalysis.Analyzer
             }
         }
 
+        public static void SetIsUsingFieldInFunction()
+        {
+            // есть важное уточнение - метод будет работать только после заполнения коллекции FuncToFuncLink
+            // принцип - параметр "1" ставится если функция используется или вызывает другие функции
+            // следовательно, если ID функции есть в любом столбце элементов этой коллекции - значит используется, ставим "1"
+            foreach (var funcFunc in FuncToFuncLinkStructsList)
+            {
+                var function = FunctionStructList[funcFunc.ChildFuncId];
+                function.IsUseful = 1;
+                FunctionStructList[function.Id] = function;
+                function = FunctionStructList[funcFunc.ParentFuncId];
+                function.IsUseful = 1;
+                FunctionStructList[function.Id] = function;
+            }
+            
+        }
+        #endregion
+
+        #region Поиск линейных участков
+        
+
+        
         /// <summary>
         /// поиск линейных участков внутри функции
         /// </summary>
@@ -226,7 +272,8 @@ namespace VisualBasicCodeAnalysis.Analyzer
             var nodeList = functionNode.ChildNodes().ToList();
             //начинается с описания - значит все правильно
             if (nodeList.First().IsKind(SyntaxKind.SubStatement) ||
-                nodeList.First().IsKind(SyntaxKind.FunctionStatement))
+                nodeList.First().IsKind(SyntaxKind.FunctionStatement) ||
+                nodeList.First().IsKind(SyntaxKind.SubNewStatement))
             {
                 //заканчивается тоже правильно
                 if (nodeList.Last().IsKind(SyntaxKind.EndSubStatement) ||
@@ -269,6 +316,36 @@ namespace VisualBasicCodeAnalysis.Analyzer
                     CreateSectionFromStack(syntaxNode, funcID, ref linNodes, fileName, funcName);
                   }
               }
+            CreateSectionFromStack(syntaxNode, funcID, ref linNodes, fileName, funcName);
+        }
+
+        /// <summary>
+        ///  метод для работы с конструкциями using или with. todo пока ну его нафиг, слишком кривая логика
+        /// мысль в том что они не образуют внутри себя отдельных ЛУ, так как не являются ветвлениями
+        /// </summary>
+        /// <param name="syntaxNode"></param>
+        /// <param name="funcID"></param>
+        /// <param name="inputLinNodes"></param>
+        /// <param name="fileName"></param>
+        /// <param name="funcName"></param>
+        public static void UsingOrWithBlockStatement(SyntaxNode syntaxNode, int funcID, ref List<SyntaxNode> inputLinNodes, string fileName, string funcName)
+        {
+            List<SyntaxNode> linNodes = new List<SyntaxNode>();
+            //логика работы с блоком MultiLineIfBlock
+            var nodeList = syntaxNode.ChildNodes().ToList(); //первая и последняя - Statement и EndStatement
+            for (int i = 1; i < nodeList.Count - 1; i++) //пройдем по всем нодам кроме стартовой и последней
+            {
+                if (FindSplitStatement(nodeList[i], funcID, fileName, funcName)) //если очередная нода - не ветвление, то добавить ее на стек
+                {
+                    linNodes.Add(nodeList[i]);
+                }
+                else //если это ветвление - значит внутри него уже идет поиск своих ЛУ
+                     //но кроме этого все содержимое стека - еще один ЛУ
+                {
+                    //а вот здесь мы должны вернуть в вызывающий метод найденные ноды
+                    CreateSectionFromStack(syntaxNode, funcID, ref linNodes, fileName, funcName);
+                }
+            }
             CreateSectionFromStack(syntaxNode, funcID, ref linNodes, fileName, funcName);
         }
 
@@ -388,6 +465,84 @@ namespace VisualBasicCodeAnalysis.Analyzer
                 linNodes.Clear();
             }
         }
+        #endregion
+
+        #region Взаимодействие функциональных объектов
+
+        /// <summary>
+        /// Создать коллекцию структур, в которых описывается взаимодействие функций друг с другом.
+        /// То есть какие функции вызывают какие
+        /// </summary>
+        public static void GetFuncFuncLinkCollection()
+        {
+            foreach (var funcStruct in FunctionStructList)  //для каждой найденной функции проверить, на какие функции приходятся ее вызовы
+            {
+                foreach (var usingFunc in funcStruct.Value.UsingList)
+                {
+                    var funcCompareList = FunctionStructList.Where(x => x.Value.DocumentName == usingFunc.DocumentName);
+                    // funcCompareList.Where(x => (usingFunc.StartLine > x.StartLine) && (usingFunc.FinishLine < x.FinishLine)).Select(x => )
+                    foreach (var f in funcCompareList)
+                    {
+                        if ((usingFunc.StartLine > f.Value.StartLine) && (usingFunc.FinishLine < f.Value.FinishLine))
+                        {
+                            var funcFunc = new FuncToFuncLinkStruct(f.Key, funcStruct.Key);
+                            if (!FuncToFuncLinkStructsList.Contains(funcFunc))
+                            {
+                                FuncToFuncLinkStructsList.Add(funcFunc);
+                            }
+                            //if (!_funcToFuncUsing.ContainsKey(f.Value.Name))
+                            //{
+                            //    _funcToFuncUsing.Add(f.Value.Name, funcStruct.Value.Name);
+                            //}
+                            //usingFunc.FuncUsingName = f.Name;
+                            //данный вызов функции происходит в функции f.Name
+                        }
+                    }
+                }
+
+            }
+            FuncToFuncLinkStructsList = FuncToFuncLinkStructsList.OrderBy(x => x.ParentFuncId).ToList();
+            SetIsUsingFieldInFunction();
+        }
+
+
+
+        #endregion
+
+        #region Поиск переменных и их использование
+
+        public static void VarSearcher(SyntaxTree syntaxTree)
+        {
+            int def_offset = 0;
+            string def_file = string.Empty;
+            SyntaxNode root = syntaxTree.GetRoot();
+            var pattern = root.DescendantNodes()
+                .Where(node => node.Kind() == SyntaxKind.FieldDeclaration)
+                .ToList();
+            
+            foreach (var variable in pattern)
+            {
+                var varLineSpan = syntaxTree.GetLineSpan(variable.Span);
+                def_offset = varLineSpan.Span.Start.Line + 1;
+                def_file = varLineSpan.Path;
+                var varTypeDesc =
+                    (VariableDeclaratorSyntax)
+                    variable.ChildNodes().First(x => x.Kind() == SyntaxKind.VariableDeclarator);
+                var varType = varTypeDesc?.AsClause?.Type().ToString();
+                var varTypeDescForName =
+                   (ModifiedIdentifierSyntax)variable.ChildNodes().First(x => x.Kind() == SyntaxKind.VariableDeclarator)
+                   .ChildNodes().First(x => x.Kind() == SyntaxKind.ModifiedIdentifier);
+
+
+                VarStructList.Add(new VarStruct(varTypeDescForName.Identifier.Text, varType, def_file, def_offset, GlobalVarId));
+                GlobalVarId++;
+            }
+
+
+
+        }
+
+        #endregion
 
         /// <summary>
         /// Get the return type of functions (include type that defined with end's name sign)

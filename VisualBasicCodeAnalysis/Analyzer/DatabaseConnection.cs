@@ -17,48 +17,32 @@ namespace VisualBasicCodeAnalysis.Analyzer
         private string dbFileName;
         private SQLiteFactory sqlFactory;
         private SQLiteConnection connection;
-        public void StartConnection()
-        {
-            dbFileName = @"E:\testdb.db";
-            SQLiteConnection con = new SQLiteConnection();
-            if (!File.Exists(dbFileName))
-            {
-               SQLiteConnection.CreateFile(dbFileName); 
-            }
-            sqlFactory = (SQLiteFactory)DbProviderFactories.GetFactory("System.Data.SQLite");
-            using (connection = (SQLiteConnection) sqlFactory.CreateConnection())
-            {
-                connection.ConnectionString = "Data Source = " + dbFileName;
-                connection.Open();
-                NonExecuteQuery("CREATE TABLE example (id INTEGER PRIMARY KEY, value TEXT);");
-                connection.Close();
-            }
-        }
+        
 
-        public void CreateOrUpdateDatabase()
-        {
-            dbFileName = @"E:\testdb.db";
-            SQLiteConnection con = new SQLiteConnection();
-            if (!File.Exists(dbFileName))
-            {
-                SQLiteConnection.CreateFile(dbFileName);
-            }
-            sqlFactory = (SQLiteFactory)DbProviderFactories.GetFactory("System.Data.SQLite");
-            using (connection = (SQLiteConnection)sqlFactory?.CreateConnection())
-            {
-                if (connection != null)
-                {
-                    connection.ConnectionString = "Data Source = " + dbFileName;
-                    connection.Open();
-                    NonExecuteQuery(
-                        "CREATE TABLE Function (id INTEGER PRIMARY KEY, name TEXT, ret_type TEXT, type_param TEXT, count_line INTEGER," + 
-                        "def_file TEXT, def_offset INTEGER, dec_file TEXT, is_useful INTEGER, udb_id INTEGER);");
-                    NonExecuteQuery("CREATE TABLE gVar (id INTEGER PRIMARY KEY, name TEXT, type TEXT, def_file TEXT, def_offset INTEGER);");
-                    NonExecuteQuery("CREATE TABLE Func_Func_Link (id_parent INGETER, id_child INTEGER);");
-                    connection.Close();
-                }
-            }
-        }
+        //public void CreateOrUpdateDatabase()
+        //{
+        //    dbFileName = @"E:\testdb.db";
+        //    SQLiteConnection con = new SQLiteConnection();
+        //    if (!File.Exists(dbFileName))
+        //    {
+        //        SQLiteConnection.CreateFile(dbFileName);
+        //    }
+        //    sqlFactory = (SQLiteFactory)DbProviderFactories.GetFactory("System.Data.SQLite");
+        //    using (connection = (SQLiteConnection)sqlFactory?.CreateConnection())
+        //    {
+        //        if (connection != null)
+        //        {
+        //            connection.ConnectionString = "Data Source = " + dbFileName;
+        //            connection.Open();
+        //            NonExecuteQuery(
+        //                "CREATE TABLE Function (id INTEGER PRIMARY KEY, name TEXT, ret_type TEXT, type_param TEXT, count_line INTEGER," + 
+        //                "def_file TEXT, def_offset INTEGER, dec_file TEXT, is_useful INTEGER, udb_id INTEGER);");
+        //            NonExecuteQuery("CREATE TABLE gVar (id INTEGER PRIMARY KEY, name TEXT, type TEXT, def_file TEXT, def_offset INTEGER);");
+        //            NonExecuteQuery("CREATE TABLE Func_Func_Link (id_parent INGETER, id_child INTEGER);");
+        //            connection.Close();
+        //        }
+        //    }
+        //}
 
         public void CreateNewDatabase()
         {
@@ -103,12 +87,14 @@ namespace VisualBasicCodeAnalysis.Analyzer
                 return 0;
             }
         }
-
-        public void NonExecuteQueryForInsertFunc(List<VisualBasicAnalysis.FuncStruct> functionStruct)
+        /// <summary>
+        /// Запись в БД найденных функциональных объектов
+        /// </summary>
+        public void NonExecuteQueryForInsertFunc()
         {
             try
             {
-                dbFileName = @"E:\testdb.db";
+                dbFileName = @"D:\workdb.db";
                 SQLiteConnection con = new SQLiteConnection();
                 if (!File.Exists(dbFileName))
                 {
@@ -122,21 +108,22 @@ namespace VisualBasicCodeAnalysis.Analyzer
                     
               
                 int i = 1;
-                foreach (var func in functionStruct)
+                foreach (var func in FunctionStructList)
                 {
                     SQLiteCommand command = new SQLiteCommand(connection)
                     {
                         CommandText = "INSERT INTO Function (id, name, ret_type, type_param, count_line, def_file," +
-                                      " def_offset, dec_file) VALUES (@id,@name,@return_type,@type_param,@count_line,@def_file,@def_offset,@dec_file)"
+                                      " def_offset, dec_file, is_useful) VALUES (@id,@name,@return_type,@type_param,@count_line,@def_file,@def_offset,@dec_file,@is_useful)"
                     };
-                    command.Parameters.Add(new SQLiteParameter("@id", i) );
-                    command.Parameters.Add(new SQLiteParameter("@name", func.Name));
-                    command.Parameters.Add(new SQLiteParameter("@return_type", func.ReturnType));
-                    command.Parameters.Add(new SQLiteParameter("@type_param", func.TypeParam));
-                    command.Parameters.Add(new SQLiteParameter("@count_line", func.CountLine));
-                    command.Parameters.Add(new SQLiteParameter("@def_file", func.DefFile));
-                    command.Parameters.Add(new SQLiteParameter("@def_offset", func.DefOffset));
-                    command.Parameters.Add(new SQLiteParameter("@dec_file", func.DefFile));
+                    command.Parameters.Add(new SQLiteParameter("@id", func.Value.Id) );
+                    command.Parameters.Add(new SQLiteParameter("@name", func.Value.Name));
+                    command.Parameters.Add(new SQLiteParameter("@return_type", func.Value.ReturnType));
+                    command.Parameters.Add(new SQLiteParameter("@type_param", func.Value.TypeParam));
+                    command.Parameters.Add(new SQLiteParameter("@count_line", func.Value.CountLine));
+                    command.Parameters.Add(new SQLiteParameter("@def_file", func.Value.DefFile));
+                    command.Parameters.Add(new SQLiteParameter("@def_offset", func.Value.DefOffset));
+                    command.Parameters.Add(new SQLiteParameter("@dec_file", func.Value.DefFile));
+                    command.Parameters.Add(new SQLiteParameter("@is_useful", func.Value.IsUseful));
                     command.CommandType = CommandType.Text;
                     command.ExecuteNonQuery();
                     i++;
@@ -151,8 +138,10 @@ namespace VisualBasicCodeAnalysis.Analyzer
                 
             }
         }
-
-        public void NonExecuteQueryFromLinSection()
+/// <summary>
+/// запись в БД линейных участков
+/// </summary>
+        public void NonExecuteQueryForLinSection()
         {
             try
             {
@@ -184,8 +173,8 @@ namespace VisualBasicCodeAnalysis.Analyzer
                             command.Parameters.Add(new SQLiteParameter("@begin", linSection.Value.StartLine));
                             command.Parameters.Add(new SQLiteParameter("@size", linSection.Value.Size));
                             command.Parameters.Add(new SQLiteParameter("@is_useful", linSection.Value.IsUsing));
-                            command.Parameters.Add(new SQLiteParameter("@fileName", linSection.Value.FileName));
-                            command.Parameters.Add(new SQLiteParameter("@funcName", linSection.Value.FuncName));
+                            command.Parameters.Add(new SQLiteParameter("@fileName", linSection.Value.FileName));  //эти два поля для проверок - smile их не жрет при построении отчетов
+                            command.Parameters.Add(new SQLiteParameter("@funcName", linSection.Value.FuncName));  //
                             command.CommandType = CommandType.Text;
                             command.ExecuteNonQuery();
                             i++;
@@ -201,12 +190,14 @@ namespace VisualBasicCodeAnalysis.Analyzer
 
             }
         }
-
-        public void NonExecuteQueryForInsertFuncToFunc(List<VisualBasicAnalysis.FuncToFuncLinkStruct> funcToFunc)
+        /// <summary>
+        /// Запись в БД коллекцию, отвечающую за взаимодействие функций между собой
+        /// </summary>
+        public void NonExecuteQueryForInsertFuncToFunc()
         {
             try
             {
-                dbFileName = @"E:\testdb.db";
+                dbFileName = @"D:\workdb.db";
                 SQLiteConnection con = new SQLiteConnection();
                 if (!File.Exists(dbFileName))
                 {
@@ -217,10 +208,8 @@ namespace VisualBasicCodeAnalysis.Analyzer
                 {
                     connection.ConnectionString = "Data Source = " + dbFileName;
                     connection.Open();
-
-
                     
-                    foreach (var func in funcToFunc)
+                    foreach (var func in FuncToFuncLinkStructsList)
                     {
                         SQLiteCommand command = new SQLiteCommand(connection)
                         {
@@ -233,17 +222,17 @@ namespace VisualBasicCodeAnalysis.Analyzer
                        
                     }
 
-                    foreach (var function in VisualBasicAnalysis.FunctionList)
-                    {
-                        SQLiteCommand command = new SQLiteCommand(connection)
-                        {
-                            CommandText = "INSERT INTO Function (id, name) VALUES (@id,@name)"
-                        };
-                        command.Parameters.Add(new SQLiteParameter("@id", function.Key));
-                        command.Parameters.Add(new SQLiteParameter("@name", function.Value.Name));
-                        command.CommandType = CommandType.Text;
-                        command.ExecuteNonQuery();
-                    }
+                    //foreach (var function in VisualBasicAnalysis.FunctionList)
+                    //{
+                    //    SQLiteCommand command = new SQLiteCommand(connection)
+                    //    {
+                    //        CommandText = "INSERT INTO Function (id, name) VALUES (@id,@name)"
+                    //    };
+                    //    command.Parameters.Add(new SQLiteParameter("@id", function.Key));
+                    //    command.Parameters.Add(new SQLiteParameter("@name", function.Value.Name));
+                    //    command.CommandType = CommandType.Text;
+                    //    command.ExecuteNonQuery();
+                    //}
                     
                     connection.Close();
                 }
@@ -256,11 +245,11 @@ namespace VisualBasicCodeAnalysis.Analyzer
             }
         }
 
-        public void NonExecuteQueryForInsertVar(List<VisualBasicAnalysis.VarStruct> varStruct)
+        public void NonExecuteQueryForInsertVar()
         {
             try
             {
-                dbFileName = @"E:\testdb.db";
+                dbFileName = @"D:\workdb.db";
                 SQLiteConnection con = new SQLiteConnection();
                 if (!File.Exists(dbFileName))
                 {
@@ -274,7 +263,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
 
 
                     int i = 1;
-                    foreach (var varS in varStruct)
+                    foreach (var varS in VarStructList)
                     {
                         SQLiteCommand command = new SQLiteCommand(connection)
                         {

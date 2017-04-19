@@ -85,5 +85,23 @@ namespace VisualBasicCodeAnalysis
         {
            FullThirdLevelAnalyzer.PasteMarkersToProject();
         }
+        /// <summary>
+        /// записываем все найденные данные в БД
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void writeToDBButton_Click(object sender, EventArgs e)
+        {
+            DatabaseConnection dtb = new DatabaseConnection();
+            dtb.NonExecuteQueryForInsertFunc();
+            dtb.NonExecuteQueryForLinSection();
+            dtb.NonExecuteQueryForInsertFuncToFunc();
+            dtb.NonExecuteQueryForInsertVar();
+        }
+
+        private void funcFuncLinkButton_Click(object sender, EventArgs e)
+        {
+            FullThirdLevelAnalyzer.GetFuncFuncLinkCollection();
+        }
     }
 }
