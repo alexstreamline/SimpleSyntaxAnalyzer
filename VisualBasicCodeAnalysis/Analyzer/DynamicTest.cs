@@ -8,6 +8,7 @@ using VisualBasicCodeAnalysis.Analyzer;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
+using static VisualBasicCodeAnalysis.Analyzer.FullThirdLevelAnalyzer;
 
 namespace VisualBasicCodeAnalysis.Analyzer
 {
@@ -24,7 +25,10 @@ namespace VisualBasicCodeAnalysis.Analyzer
             Dictionary<string,int> filesDictionary = new Dictionary<string, int>(); 
             foreach (var functionStruct in inputFuncList)
             {
-                if (filesDictionary.ContainsKey(functionStruct.Value.DefFile))
+                //так как вечно забываю, как это работает, описываю
+                // если в словаре есть путь к файлу, в который сейчас будем вставлять маркер - увеличиваем его
+                // value значение на 1 и вставляем маркер (ибо каждый новый сдвигает все последующие позиции вниз)
+                if (filesDictionary.ContainsKey(functionStruct.Value.DefFile)) 
                 {
                    ReWriteFile(functionStruct.Value.DefFile,functionStruct.Value.MarkerPosition + filesDictionary[functionStruct.Value.DefFile],functionStruct.Value.Id, 3);
                    filesDictionary[functionStruct.Value.DefFile]++;
@@ -39,24 +43,32 @@ namespace VisualBasicCodeAnalysis.Analyzer
             
         }
 
-        public static void PasteMarkerLinSection(Dictionary<int, FullThirdLevelAnalyzer.LinearSection> inputLinSectionList)
+        public static void PasteMarkerLinSection(Project project)
         {
-            Dictionary<string, int> filesDictionary = new Dictionary<string, int>();
-            foreach (var linSectionStruct in inputLinSectionList)
+            var docList = project.Documents.ToList();
+            foreach (var document in docList)
             {
-                if (filesDictionary.ContainsKey(linSectionStruct.Value.FileName))//todo здесь не fileName, а нужен полный путь 
+                if (document.Name != "Logger.vb")
                 {
-                    ReWriteFile(functionStruct.Value.DefFile, functionStruct.Value.MarkerPosition + filesDictionary[functionStruct.Value.DefFile], functionStruct.Value.Id, 3);
-                    filesDictionary[functionStruct.Value.DefFile]++;
-                }
-                else
-                {
-                    filesDictionary.Add(functionStruct.Value.DefFile, 0);
-                    ReWriteFile(functionStruct.Value.DefFile, functionStruct.Value.DefOffset, functionStruct.Value.Id, 3);
-                }
+                    var linListInDoc = LinearSectionsList.Where(x => x.Value.FileName == document.FilePath)
+                        .OrderBy(x => x.Value.StartLine)
+                        .ToList();
 
+                    int offset = 0;
+                    foreach (var linSectionStruct in linListInDoc)
+                    {
+
+
+
+                        ReWriteFile(linSectionStruct.Value.FileName,
+                            linSectionStruct.Value.StartLine + offset - 1,
+                            linSectionStruct.Value.GlobalID, 2);
+                        offset++;
+
+
+                    }
+                }
             }
-
         }
         /// <summary>
         /// удаление всех маркеров в проекте
@@ -73,6 +85,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
                 foreach (var document in documentList)
                 {
                    DeleteMarkerFromFile(document.FilePath);
+                   DeleteLinMarkerFromFile(document.FilePath);
                 }
             }
 
@@ -155,6 +168,35 @@ namespace VisualBasicCodeAnalysis.Analyzer
             
           
             
+            File.WriteAllLines(filePath, allLinesToList.ToArray());  //перезаписываем файл уже без маркеров
+        }
+
+        public static void DeleteLinMarkerFromFile(string filePath)
+        {
+            string[] allLines = File.ReadAllLines(filePath);
+            List<string> allLinesToList = allLines.ToList();
+            List<int> stringsNumToDelete = new List<int>();
+            int key = 0;
+            foreach (var line in allLinesToList)      //находим строки с маркерами и отмечаем их
+            {
+                Regex regex = new Regex(@"Logger.LogLin");
+                MatchCollection matches = regex.Matches(line);
+                if (matches.Count > 0)
+                {
+                    stringsNumToDelete.Add(key);
+                }
+                key++;
+            }
+
+            int correct = 0;
+            foreach (var stringNum in stringsNumToDelete)
+            {
+                allLinesToList.RemoveAt(stringNum - correct);
+                correct++;
+            }
+
+
+
             File.WriteAllLines(filePath, allLinesToList.ToArray());  //перезаписываем файл уже без маркеров
         }
     }

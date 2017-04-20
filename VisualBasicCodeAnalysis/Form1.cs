@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Microsoft.CodeAnalysis.MSBuild;
 using VisualBasicCodeAnalysis.Analyzer;
 
 namespace VisualBasicCodeAnalysis
@@ -102,6 +103,23 @@ namespace VisualBasicCodeAnalysis
         private void funcFuncLinkButton_Click(object sender, EventArgs e)
         {
             FullThirdLevelAnalyzer.GetFuncFuncLinkCollection();
+        }
+
+        private void pasteLinSectionMarker_Click(object sender, EventArgs e)
+        {
+            var workspace = MSBuildWorkspace.Create();
+            var solution = workspace.OpenSolutionAsync(filePath).Result;
+            var projects = solution.Projects.ToList();
+            foreach (var project in projects)
+            {
+                DynamicTest.PasteMarkerLinSection(project);
+            }
+        }
+
+        private void deleteLinSectionMarker_Click(object sender, EventArgs e)
+        {
+            DynamicTest.UnPasteMarker(filePath);
+
         }
     }
 }

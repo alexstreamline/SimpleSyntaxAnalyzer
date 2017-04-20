@@ -139,6 +139,7 @@
             this.pasteLinSectionMarker.TabIndex = 10;
             this.pasteLinSectionMarker.Text = "Paste LinSectionMarker";
             this.pasteLinSectionMarker.UseVisualStyleBackColor = true;
+            this.pasteLinSectionMarker.Click += new System.EventHandler(this.pasteLinSectionMarker_Click);
             // 
             // deleteLinSectionMarker
             // 
@@ -148,6 +149,7 @@
             this.deleteLinSectionMarker.TabIndex = 11;
             this.deleteLinSectionMarker.Text = "Delete LinSectionMarker";
             this.deleteLinSectionMarker.UseVisualStyleBackColor = true;
+            this.deleteLinSectionMarker.Click += new System.EventHandler(this.deleteLinSectionMarker_Click);
             // 
             // funcFuncLinkButton
             // 

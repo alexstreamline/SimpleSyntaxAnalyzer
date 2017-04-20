@@ -150,7 +150,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
                         FunctionStructList.Add(GlobalFuncId, new FunctionStruct(GlobalFuncId,functionNode.Identifier.Text, ReturnTypeToString(functionNode),
                             ParamListToString(functionNode.ParameterList), count, defPath ,defOffset, isUseful, document.Name,
                                 function.Span.Start, function.Span.End, markerPosition, usingStructList));  //заполнение структур функций
-                        FindLinearSection(function, GlobalFuncId, document.Name, functionNode.Identifier.Text);
+                        FindLinearSection(function, GlobalFuncId, document.FilePath, functionNode.Identifier.Text);
 
                         GlobalFuncId++;
                     }
@@ -223,7 +223,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
                         FunctionStructList.Add(GlobalFuncId, new FunctionStruct(GlobalFuncId, constructorName, string.Empty,
                             ParamListToString(functionNode.ParameterList), count, defPath, defOffset, isUseful, document.Name,
                                 function.Span.Start, function.Span.End, markerPosition, usingStructList));  //заполнение структур функций
-                        FindLinearSection(function, GlobalFuncId, String.Empty, document.Name);
+                        FindLinearSection(function, GlobalFuncId, document.FilePath, constructorName);
                         GlobalFuncId++;
                     }
 
