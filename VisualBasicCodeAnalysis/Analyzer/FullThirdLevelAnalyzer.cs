@@ -71,11 +71,11 @@ namespace VisualBasicCodeAnalysis.Analyzer
                         GetFunctionsList(syntaxTree, document, compilation, project); //todo решение с поиском сначала функций а потом конструкторов не очень рационально
                             //заполнить список структур с описанием функциональных объектов
                         GetConstructorsList(syntaxTree, document, compilation, project);  //todo подумать потом что можно сделать
-                        VarSearcher(syntaxTree);
+                        VarSearcher(syntaxTree, compilation, project);
                     }
                 }
             }
-            DatabaseConnection dtb = new DatabaseConnection();
+           // DatabaseConnection dtb = new DatabaseConnection();
            // dtb.NonExecuteQueryForInsertFunc();
            // dtb.NonExecuteQueryForLinSection();
            
@@ -511,7 +511,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
 
         #region Поиск переменных и их использование
 
-        public static void VarSearcher(SyntaxTree syntaxTree)
+        public static void VarSearcher(SyntaxTree syntaxTree, Compilation compilation, Project project)
         {
             int def_offset = 0;
             string def_file = string.Empty;
@@ -519,7 +519,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
             var pattern = root.DescendantNodes()
                 .Where(node => node.Kind() == SyntaxKind.FieldDeclaration)
                 .ToList();
-            
+            SemanticModel semanticModel = compilation.GetSemanticModel(syntaxTree);
             foreach (var variable in pattern)
             {
                 var varLineSpan = syntaxTree.GetLineSpan(variable.Span);
@@ -532,8 +532,25 @@ namespace VisualBasicCodeAnalysis.Analyzer
                 var varTypeDescForName =
                    (ModifiedIdentifierSyntax)variable.ChildNodes().First(x => x.Kind() == SyntaxKind.VariableDeclarator)
                    .ChildNodes().First(x => x.Kind() == SyntaxKind.ModifiedIdentifier);
+                List<UsingStruct> usingStructList = new List<UsingStruct>();
+                var findReference =
+                    SymbolFinder.FindReferencesAsync(semanticModel.GetDeclaredSymbol(varTypeDescForName), project.Solution)
+                        .Result.FirstOrDefault();
 
+                if (findReference != null)
+                {
 
+                    foreach (var usingLocation in findReference.Locations)
+                    //перечисление найденных использований функциональных объектов
+                    {
+                        //var locOffset = syntaxTree.GetLineSpan(location.Location.SourceSpan).Span;
+                        var locOffset = usingLocation.Location.SourceSpan;
+                        // отступ (в виде спана, а не номера строки)
+                        var name = usingLocation.Document.Name; // todo ?? имя документа, где находится ссылка 
+                        UsingStruct usingStruct = new UsingStruct(locOffset.Start, locOffset.End, name);
+                        usingStructList.Add(usingStruct);
+                    }
+                }
                 VarStructList.Add(new VarStruct(varTypeDescForName.Identifier.Text, varType, def_file, def_offset, GlobalVarId));
                 GlobalVarId++;
             }

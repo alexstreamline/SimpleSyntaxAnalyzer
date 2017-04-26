@@ -57,15 +57,10 @@ namespace VisualBasicCodeAnalysis.Analyzer
                     int offset = 0;
                     foreach (var linSectionStruct in linListInDoc)
                     {
-
-
-
                         ReWriteFile(linSectionStruct.Value.FileName,
                             linSectionStruct.Value.StartLine + offset - 1,
                             linSectionStruct.Value.GlobalID, 2);
                         offset++;
-
-
                     }
                 }
             }
