@@ -74,7 +74,13 @@ namespace VisualBasicCodeAnalysis
 
         private void button2_Click(object sender, EventArgs e)
         {
-            FuncUsingLogParser.ReadLogFile(@"D:\Atlaslog-20170406.txt");
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Text File .txt |*.txt";
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                FuncUsingLogParser.ReadLogFile(openFileDialog.FileName);
+            }
+            
         }
 
         private void button3_Click(object sender, EventArgs e)
@@ -98,11 +104,14 @@ namespace VisualBasicCodeAnalysis
             dtb.NonExecuteQueryForLinSection();
             dtb.NonExecuteQueryForInsertFuncToFunc();
             dtb.NonExecuteQueryForInsertVar();
+            dtb.NonExecuteQueryForInsertGVarFunc();
+            dtb.NonExecuteQueryForLinSectRoutes();
         }
 
         private void funcFuncLinkButton_Click(object sender, EventArgs e)
         {
             FullThirdLevelAnalyzer.GetFuncFuncLinkCollection();
+            FullThirdLevelAnalyzer.GetGVarFuncLinkCollection(); //и поиск переменных заодно todo разнести ибо это не нормально
         }
 
         private void pasteLinSectionMarker_Click(object sender, EventArgs e)
@@ -119,7 +128,16 @@ namespace VisualBasicCodeAnalysis
         private void deleteLinSectionMarker_Click(object sender, EventArgs e)
         {
             DynamicTest.UnPasteMarker(filePath);
+        }
 
+        private void readLinSectionLogButton_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Text File .txt |*.txt";
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                FuncUsingLogParser.ReadLinearSectionLogFile(openFileDialog.FileName);
+            }
         }
     }
 }

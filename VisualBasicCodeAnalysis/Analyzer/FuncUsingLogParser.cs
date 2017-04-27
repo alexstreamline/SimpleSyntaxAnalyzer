@@ -32,5 +32,25 @@ namespace VisualBasicCodeAnalysis.Analyzer
                 }
             }
         }
+        /// <summary>
+        ///  читаем лог для линейных участков todo по хорошему перенести в отдельный класс или переделать 
+        /// </summary>
+        /// <param name="filePath"></param>
+        public static void ReadLinearSectionLogFile(string filePath)
+        {
+            var allLinesFromLog = File.ReadAllLines(filePath);
+            foreach (var logString in allLinesFromLog)
+            {
+                Regex regex = new Regex(@"Линейный участок ""(.*)"" отработал");
+                MatchCollection matches = regex.Matches(logString);
+                int linId = Convert.ToInt32(matches[0].Groups[1].Value);
+                if (FullThirdLevelAnalyzer.LinearSectionsList.ContainsKey(linId)) //проверяем на всякий случай, если ID есть в логе - он обязан быть в таблице 
+                {
+                    var changedFuncStruct = FullThirdLevelAnalyzer.LinearSectionsList[linId];
+                    changedFuncStruct.IsUsing = 2;
+                    FullThirdLevelAnalyzer.LinearSectionsList[linId] = changedFuncStruct;
+                }
+            }
+        }
     }
 }

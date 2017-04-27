@@ -26,6 +26,10 @@ namespace VisualBasicCodeAnalysis.Analyzer
 
         public static List<FuncToFuncLinkStruct> FuncToFuncLinkStructsList = new List<FuncToFuncLinkStruct>();
 
+        public static List<GVarFuncLinkStruct> GVarFuncLinkStructsList = new List<GVarFuncLinkStruct>();
+
+        public static List<LinSectRoute> LinSectRoutes = new List<LinSectRoute>();
+
         private static readonly Dictionary<string, string> CharBasicDictionary = new Dictionary<string, string>
         {
             ["&"] = "Long",
@@ -55,6 +59,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
         /// <param name="filePath"> путь к проекту для анализа </param>
         public static void StartSearching(string filePath)
         {
+            ClearStaticCollection();
             GlobalFuncId = 1;
             var workspace = MSBuildWorkspace.Create();
             var solution = workspace.OpenSolutionAsync(filePath).Result;
@@ -79,6 +84,16 @@ namespace VisualBasicCodeAnalysis.Analyzer
            // dtb.NonExecuteQueryForInsertFunc();
            // dtb.NonExecuteQueryForLinSection();
            
+        }
+
+        public static void ClearStaticCollection()
+        {
+          VarStructList.Clear();
+          FunctionStructList.Clear();
+          LinearSectionsList.Clear();
+          FuncToFuncLinkStructsList.Clear();
+          GVarFuncLinkStructsList.Clear();  
+
         }
 
         public static void PasteMarkersToProject()  //todo прям совсем тупое решение, подумать как сделать лучше
@@ -267,7 +282,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
             //если находим - создаем 2 новых линейных участка (по if и else ветке)
             //при этом рассматриваем каждую ветку на наличие внутри еще конструкций
             //
-            
+            List<int> listOfLinSectionInside = new List<int>();
             //получить список всех первичных чайлд нод
             var nodeList = functionNode.ChildNodes().ToList();
             //начинается с описания - значит все правильно
@@ -282,7 +297,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
                     //теперь свобода действий - ищем конструкции, которые будут разделять код на линейные участки
                     for (int i = 1; i < nodeList.Count - 1; i++) //пройдем по всем нодам кроме стартовой и последней
                     {
-                        if (FindSplitStatement(nodeList[i], funcID, fileName, funcName))
+                        if (FindSplitStatement(nodeList[i], funcID, fileName, funcName, ref listOfLinSectionInside))
                             //если очередная нода - не ветвление, то добавить ее на стек
                         {
                             linNodes.Add(nodeList[i]);
@@ -290,33 +305,58 @@ namespace VisualBasicCodeAnalysis.Analyzer
                         else //если это ветвление - значит внутри него уже идет поиск своих ЛУ
                             //но кроме этого все содержимое стека - еще один ЛУ
                         {
-                            CreateSectionFromStack(nodeList[i],funcID,ref linNodes, fileName, funcName);                            
+                            
+                            if (linNodes.Count != 0)
+                            {
+                                CreateSectionFromStack(nodeList[i], funcID, ref linNodes, fileName, funcName);
+                                foreach (var linId in listOfLinSectionInside)
+                                {
+                                    LinSectRoutes.Add(new LinSectRoute(GlobalLinSectionId-1,linId, funcID));
+                                }
+                                
+                            }                           
                         }
                     }
-                    CreateSectionFromStack(functionNode, funcID,ref linNodes, fileName, funcName);
+                    if (linNodes.Count != 0)
+                    {
+
+                        CreateSectionFromStack(functionNode, funcID, ref linNodes, fileName, funcName);
+                        foreach (var linId in listOfLinSectionInside)
+                        {
+                            LinSectRoutes.Add(new LinSectRoute(linId, GlobalLinSectionId - 1, funcID));
+                        }
+                    }
                 }
                 
             }
         }
 
-        public static void MultiLineIfBlockStatement(SyntaxNode syntaxNode, int funcID, string fileName, string funcName)
+        public static void MultiLineIfBlockStatement(SyntaxNode syntaxNode, int funcID, string fileName, string funcName, ref List<int> listOfLinSection)
         {
             List<SyntaxNode> linNodes = new List<SyntaxNode>();
             //логика работы с блоком MultiLineIfBlock
             var nodeList = syntaxNode.ChildNodes().ToList(); //первая и последняя - IfStatement и EndIfStatement
             for (int i = 1; i < nodeList.Count - 1; i++) //пройдем по всем нодам кроме стартовой и последней
               {
-                  if (FindSplitStatement(nodeList[i],funcID, fileName, funcName)) //если очередная нода - не ветвление, то добавить ее на стек
+                  if (FindSplitStatement(nodeList[i],funcID, fileName, funcName, ref listOfLinSection)) //если очередная нода - не ветвление, то добавить ее на стек
                   {
                      linNodes.Add(nodeList[i]);  
                   }
                   else //если это ветвление - значит внутри него уже идет поиск своих ЛУ
                   //но кроме этого все содержимое стека - еще один ЛУ
                   {
-                    CreateSectionFromStack(syntaxNode, funcID, ref linNodes, fileName, funcName);
+                      if (linNodes.Count != 0)
+                      {
+                          CreateSectionFromStack(syntaxNode, funcID, ref linNodes, fileName, funcName);
+                        listOfLinSection.Add(GlobalLinSectionId - 1);
+                    }
                   }
               }
-            CreateSectionFromStack(syntaxNode, funcID, ref linNodes, fileName, funcName);
+            if (linNodes.Count != 0)
+            {
+                CreateSectionFromStack(syntaxNode, funcID, ref linNodes, fileName, funcName);
+                listOfLinSection.Add(GlobalLinSectionId-1);
+            }
         }
 
         /// <summary>
@@ -328,14 +368,14 @@ namespace VisualBasicCodeAnalysis.Analyzer
         /// <param name="inputLinNodes"></param>
         /// <param name="fileName"></param>
         /// <param name="funcName"></param>
-        public static void UsingOrWithBlockStatement(SyntaxNode syntaxNode, int funcID, ref List<SyntaxNode> inputLinNodes, string fileName, string funcName)
+        public static void UsingOrWithBlockStatement(SyntaxNode syntaxNode, int funcID, ref List<SyntaxNode> inputLinNodes, string fileName, string funcName, ref List<int> listOfLinSection)
         {
             List<SyntaxNode> linNodes = new List<SyntaxNode>();
             //логика работы с блоком MultiLineIfBlock
             var nodeList = syntaxNode.ChildNodes().ToList(); //первая и последняя - Statement и EndStatement
             for (int i = 1; i < nodeList.Count - 1; i++) //пройдем по всем нодам кроме стартовой и последней
             {
-                if (FindSplitStatement(nodeList[i], funcID, fileName, funcName)) //если очередная нода - не ветвление, то добавить ее на стек
+                if (FindSplitStatement(nodeList[i], funcID, fileName, funcName, ref  listOfLinSection)) //если очередная нода - не ветвление, то добавить ее на стек
                 {
                     linNodes.Add(nodeList[i]);
                 }
@@ -349,14 +389,14 @@ namespace VisualBasicCodeAnalysis.Analyzer
             CreateSectionFromStack(syntaxNode, funcID, ref linNodes, fileName, funcName);
         }
 
-        public static void ElseBlockStatement(SyntaxNode syntaxNode, int funcID, string fileName, string funcName)
+        public static void ElseBlockStatement(SyntaxNode syntaxNode, int funcID, string fileName, string funcName, ref List<int> listOfLinSection)
         {
             List<SyntaxNode> linNodes = new List<SyntaxNode>();
             //логика работы с блоком ElseBlock
             var nodeList = syntaxNode.ChildNodes().ToList();
             for (int i = 1; i < nodeList.Count; i++) // первая нода - ElseStatement, остальные смотрим
             {
-                if (FindSplitStatement(nodeList[i], funcID, fileName, funcName))
+                if (FindSplitStatement(nodeList[i], funcID, fileName, funcName, ref listOfLinSection))
                     //если очередная нода - не ветвление, то добавить ее на стек
                 {
                     linNodes.Add(nodeList[i]);
@@ -364,10 +404,18 @@ namespace VisualBasicCodeAnalysis.Analyzer
                 else //если это ветвление - значит внутри него уже идет поиск своих ЛУ
                     //но кроме этого все содержимое стека - еще один ЛУ
                 {
-                    CreateSectionFromStack(syntaxNode,funcID,ref linNodes, fileName, funcName);
+                    if (linNodes.Count != 0)
+                    {
+                        CreateSectionFromStack(syntaxNode, funcID, ref linNodes, fileName, funcName);
+                        listOfLinSection.Add(GlobalLinSectionId - 1);
+                    }
                 }
             }
-            CreateSectionFromStack(syntaxNode, funcID, ref linNodes, fileName, funcName);
+            if (linNodes.Count != 0)
+            {
+                CreateSectionFromStack(syntaxNode, funcID, ref linNodes, fileName, funcName);
+                listOfLinSection.Add(GlobalLinSectionId - 1);
+            }
 
         }
 
@@ -377,7 +425,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
         /// </summary>
         /// <param name="syntaxNode"></param>
         /// <param name="funcID"></param>
-        public static bool FindSplitStatement(SyntaxNode syntaxNode, int funcID, string fileName, string funcName)
+        public static bool FindSplitStatement(SyntaxNode syntaxNode, int funcID, string fileName, string funcName, ref List<int> listOfLinSections )
         {
             switch (syntaxNode.Kind())
             {
@@ -389,7 +437,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
                 case SyntaxKind.DoLoopWhileBlock:
                 case SyntaxKind.WithBlock:
                 case SyntaxKind.MultiLineIfBlock:
-                    MultiLineIfBlockStatement(syntaxNode, funcID, fileName, funcName);
+                    MultiLineIfBlockStatement(syntaxNode, funcID, fileName, funcName, ref listOfLinSections);
                     //todo 
                     break;
                 case SyntaxKind.SingleLineIfStatement:
@@ -407,7 +455,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
                 case SyntaxKind.CatchBlock:
                 case SyntaxKind.FinallyBlock:
                 case SyntaxKind.ElseBlock:
-                    ElseBlockStatement(syntaxNode,funcID, fileName, funcName);
+                    ElseBlockStatement(syntaxNode,funcID, fileName, funcName, ref listOfLinSections);
                     break;
                 default:
                     //сюда мы должны попасть, если не встретили циклов или ветвлений
@@ -505,6 +553,32 @@ namespace VisualBasicCodeAnalysis.Analyzer
             SetIsUsingFieldInFunction();
         }
 
+        public static void GetGVarFuncLinkCollection()
+        {
+
+            foreach (var gVar in VarStructList)
+            {
+                foreach (var gVarUsing in gVar.UsingList)
+                {
+                    var funcCompareList = FunctionStructList.Where(x => x.Value.DocumentName == gVarUsing.DocumentName);
+                    foreach (var function in funcCompareList)
+                    {
+                        if ((gVarUsing.StartLine > function.Value.StartLine) && (gVarUsing.FinishLine < function.Value.FinishLine))
+                        {
+                            var gVarUsingInFunc = new GVarFuncLinkStruct(gVar.Id, function.Value.Id);
+                            if (!GVarFuncLinkStructsList.Contains(gVarUsingInFunc))
+                            {
+                                GVarFuncLinkStructsList.Add(gVarUsingInFunc);
+                            }                          
+                        }
+                    }
+                }
+                
+            }
+            
+           GVarFuncLinkStructsList = GVarFuncLinkStructsList.OrderBy(x => x.VarId).ToList();
+           
+        }
 
 
         #endregion
@@ -551,7 +625,7 @@ namespace VisualBasicCodeAnalysis.Analyzer
                         usingStructList.Add(usingStruct);
                     }
                 }
-                VarStructList.Add(new VarStruct(varTypeDescForName.Identifier.Text, varType, def_file, def_offset, GlobalVarId));
+                VarStructList.Add(new VarStruct(varTypeDescForName.Identifier.Text, varType, def_file, def_offset, GlobalVarId,usingStructList));
                 GlobalVarId++;
             }
 
@@ -646,14 +720,16 @@ namespace VisualBasicCodeAnalysis.Analyzer
             public string DefFile;
             public int DefOffset;
             public int Id;
+            public List<UsingStruct> UsingList;
 
-            public VarStruct(string name, string type, string defFile, int defOffset, int id)
+            public VarStruct(string name, string type, string defFile, int defOffset, int id, List<UsingStruct> usingList)
             {
                 Name = name;
                 Type = type;
                 DefFile = defFile;
                 DefOffset = defOffset;
                 Id = id;
+                UsingList = usingList;
             }
         }
 
@@ -772,6 +848,32 @@ namespace VisualBasicCodeAnalysis.Analyzer
             {
                 ParentFuncId = parentId;
                 ChildFuncId = childId;
+            }
+        }
+
+        public struct GVarFuncLinkStruct
+        {
+            public int VarId;
+            public int FuncId;
+
+            public GVarFuncLinkStruct(int varId, int funcId)
+            {
+                VarId = varId;
+                FuncId = funcId;
+            }
+        }
+
+        public struct LinSectRoute
+        {
+            public int FirstId;
+            public int LastId;
+            public int FuncId;
+
+            public LinSectRoute(int firstId, int lastId, int funcId)
+            {
+                FirstId = firstId;
+                LastId = lastId;
+                FuncId = funcId;
             }
         }
 

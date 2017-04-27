@@ -130,6 +130,7 @@
             this.readLinSectionLogButton.TabIndex = 9;
             this.readLinSectionLogButton.Text = "Read linSection log";
             this.readLinSectionLogButton.UseVisualStyleBackColor = true;
+            this.readLinSectionLogButton.Click += new System.EventHandler(this.readLinSectionLogButton_Click);
             // 
             // pasteLinSectionMarker
             // 

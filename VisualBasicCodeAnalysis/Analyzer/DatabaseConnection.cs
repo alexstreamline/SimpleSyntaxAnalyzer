@@ -62,12 +62,13 @@ namespace VisualBasicCodeAnalysis.Analyzer
                     NonExecuteQuery(
                         "CREATE TABLE Function (id INTEGER PRIMARY KEY, name TEXT, ret_type TEXT, type_param TEXT, count_line INTEGER," +
                         "def_file TEXT, def_offset INTEGER, dec_file TEXT, is_useful INTEGER, udb_id INTEGER);");
-                    NonExecuteQuery("CREATE TABLE gVar (id INTEGER PRIMARY KEY, name TEXT, type TEXT, def_file TEXT, def_offset INTEGER);");
                     NonExecuteQuery("CREATE TABLE Func_Func_Link (id_parent INTEGER, id_child INTEGER);");
                     NonExecuteQuery("CREATE TABLE Line (id_func INTEGER, id_line_in_func INTEGER, id_global INTEGER, begin INTEGER, size INTEGER, is_useful INTEGER, fileName TEXT, funcName TEXT );");
                     NonExecuteQuery("CREATE TABLE Line_line (id_line1 INTEGER, id_line2 INTEGER, flag_return INTEGER, id_func INTEGER);");
+                    NonExecuteQuery("CREATE TABLE gVar (id INTEGER PRIMARY KEY, name TEXT, type TEXT, def_file TEXT, def_offset INTEGER);");
+                    NonExecuteQuery("CREATE TABLE gVar_Func_Link (id_gVar INTEGER, id_func INTEGER);");
 
-                   connection.Close();
+                    connection.Close();
                 }
             }
         }
@@ -234,6 +235,93 @@ namespace VisualBasicCodeAnalysis.Analyzer
                     //    command.ExecuteNonQuery();
                     //}
                     
+                    connection.Close();
+                }
+
+            }
+            catch (Exception e)
+            {
+
+
+            }
+        }
+        /// <summary>
+        /// поиск использования переменных внутри функций 
+        /// </summary>
+        public void NonExecuteQueryForInsertGVarFunc()
+        {
+            try
+            {
+                dbFileName = @"D:\workdb.db";
+                SQLiteConnection con = new SQLiteConnection();
+                if (!File.Exists(dbFileName))
+                {
+                    // SQLiteConnection.CreateFile(dbFileName);
+                }
+                sqlFactory = (SQLiteFactory)DbProviderFactories.GetFactory("System.Data.SQLite");
+                using (connection = (SQLiteConnection)sqlFactory.CreateConnection())
+                {
+                    connection.ConnectionString = "Data Source = " + dbFileName;
+                    connection.Open();
+
+                    foreach (var gVar in GVarFuncLinkStructsList)
+                    {
+                        SQLiteCommand command = new SQLiteCommand(connection)
+                        {
+                            CommandText = "INSERT INTO gVar_Func_link (id_gVar, id_func ) VALUES (@id_gVar,@id_func)"
+                        };
+                        command.Parameters.Add(new SQLiteParameter("@id_gVar", gVar.VarId));
+                        command.Parameters.Add(new SQLiteParameter("@id_func", gVar.FuncId));
+                        command.CommandType = CommandType.Text;
+                        command.ExecuteNonQuery();
+
+                    }
+
+                   
+
+                    connection.Close();
+                }
+
+            }
+            catch (Exception e)
+            {
+
+
+            }
+        }
+
+        public void NonExecuteQueryForLinSectRoutes()
+        {
+            try
+            {
+                dbFileName = @"D:\workdb.db";
+                SQLiteConnection con = new SQLiteConnection();
+                if (!File.Exists(dbFileName))
+                {
+                    // SQLiteConnection.CreateFile(dbFileName);
+                }
+                sqlFactory = (SQLiteFactory)DbProviderFactories.GetFactory("System.Data.SQLite");
+                using (connection = (SQLiteConnection)sqlFactory.CreateConnection())
+                {
+                    connection.ConnectionString = "Data Source = " + dbFileName;
+                    connection.Open();
+
+                    foreach (var route in LinSectRoutes)
+                    {
+                        SQLiteCommand command = new SQLiteCommand(connection)
+                        {
+                            CommandText = "INSERT INTO Line_line (id_line1, id_line2, id_func ) VALUES (@id_line1,@id_line2, @id_func)"
+                        };
+                        command.Parameters.Add(new SQLiteParameter("@id_line1", route.FirstId));
+                        command.Parameters.Add(new SQLiteParameter("@id_line2", route.LastId));
+                        command.Parameters.Add(new SQLiteParameter("@id_func", route.FuncId));
+                        command.CommandType = CommandType.Text;
+                        command.ExecuteNonQuery();
+
+                    }
+
+
+
                     connection.Close();
                 }
 
